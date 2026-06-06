@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -126,7 +125,10 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 window.bid = async function(){
-
+    if(Date.now() > endTime){
+    alert("Phiên đấu giá đã kết thúc!");
+    return;
+    }
     const name=document.getElementById("name").value.trim();
     const slot=document.getElementById("slot").value;
     const price=parseInt(document.getElementById("price").value);
@@ -165,7 +167,12 @@ window.bid = async function(){
         return;
     }
 
-    const locked=price>=500000;
+    if(price > 500000){
+    alert("Giá tối đa là 500.000đ");
+    return;
+    }
+    
+    const locked = (price === 500000);
 
     await set(slotRef,{
         price:price,
