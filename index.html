@@ -137,7 +137,6 @@ window.bid = async function(){
     return;
     }
     const name=document.getElementById("name").value.trim();
-    const cleanName = name.replace(/[<>]/g, "");
     const slot=document.getElementById("slot").value;
     const price=parseInt(document.getElementById("price").value);
 
@@ -184,7 +183,7 @@ window.bid = async function(){
 
     await set(slotRef,{
         price:price,
-        leader:cleanname,
+        leader:name,
         locked:locked
     });
 
