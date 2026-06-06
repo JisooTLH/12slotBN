@@ -1,10 +1,262 @@
+```html
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-  <title>Đấu Giá</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đấu giá 12 Slot BN</title>
+
+<style>
+body{
+    font-family:Arial,sans-serif;
+    max-width:1200px;
+    margin:auto;
+    padding:20px;
+    background:#f5f5f5;
+}
+
+h1{
+    text-align:center;
+}
+
+.timer{
+    text-align:center;
+    font-size:28px;
+    font-weight:bold;
+    color:red;
+    margin-bottom:20px;
+}
+
+.form{
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    margin-bottom:20px;
+}
+
+input,select,button{
+    padding:8px;
+    margin:5px;
+}
+
+button{
+    cursor:pointer;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:10px;
+}
+
+.slot{
+    background:white;
+    border-radius:10px;
+    padding:10px;
+}
+
+.locked{
+    background:#d4ffd4;
+}
+
+.history{
+    background:white;
+    margin-top:20px;
+    padding:10px;
+    border-radius:10px;
+    max-height:300px;
+    overflow:auto;
+}
+</style>
 </head>
+
 <body>
-  <h1>Đấu Giá 12 slot BN</h1>
-  <p>TLH mùa 17 - PK23002V</p>
+
+<h1>ĐẤU GIÁ 12 SLOT BN</h1>
+
+<div class="timer" id="timer"></div>
+
+<div class="form">
+    <input id="name" placeholder="Tên">
+
+    <select id="slot">
+        <option value="1">Slot 1</option>
+        <option value="2">Slot 2</option>
+        <option value="3">Slot 3</option>
+        <option value="4">Slot 4</option>
+        <option value="5">Slot 5</option>
+        <option value="6">Slot 6</option>
+        <option value="7">Slot 7</option>
+        <option value="8">Slot 8</option>
+        <option value="9">Slot 9</option>
+        <option value="10">Slot 10</option>
+        <option value="11">Slot 11</option>
+        <option value="12">Slot 12</option>
+    </select>
+
+    <input id="price" type="number" placeholder="Giá">
+
+    <button onclick="bid()">Đặt giá</button>
+</div>
+
+<div id="slots" class="grid"></div>
+
+<div class="history">
+    <h3>Lịch sử đấu giá</h3>
+    <div id="history"></div>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { getDatabase, ref, onValue, set, push, get }
+from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA2ZuJq3bEcfevMiGO1TXbFRtQWRvd5Clo",
+  authDomain: "tlhauction.firebaseapp.com",
+  databaseURL: "https://tlhauction-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "tlhauction",
+  storageBucket: "tlhauction.firebasestorage.app",
+  messagingSenderId: "1008974383774",
+  appId: "1:1008974383774:web:0c210913630febcfb5498f"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+window.bid = async function(){
+
+    const name=document.getElementById("name").value.trim();
+    const slot=document.getElementById("slot").value;
+    const price=parseInt(document.getElementById("price").value);
+
+    if(!name){
+        alert("Nhập tên");
+        return;
+    }
+
+    if(!price || price<100000){
+        alert("Giá tối thiểu 100.000");
+        return;
+    }
+
+    const slotRef=ref(db,"slots/"+slot);
+
+    const snap=await get(slotRef);
+
+    let current={
+        price:100000,
+        leader:"",
+        locked:false
+    };
+
+    if(snap.exists()){
+        current=snap.val();
+    }
+
+    if(current.locked){
+        alert("Slot đã chốt");
+        return;
+    }
+
+    if(price<=current.price){
+        alert("Giá phải cao hơn giá hiện tại");
+        return;
+    }
+
+    const locked=price>=500000;
+
+    await set(slotRef,{
+        price:price,
+        leader:name,
+        locked:locked
+    });
+
+    await push(ref(db,"history"),{
+        slot:slot,
+        name:name,
+        price:price,
+        time:new Date().toLocaleString("vi-VN")
+    });
+
+    document.getElementById("price").value="";
+
+    if(locked){
+        alert("ĐÃ CHỐT SLOT NÀY");
+    }
+}
+
+function renderSlots(data){
+
+    let html="";
+
+    for(let i=1;i<=12;i++){
+
+        let slot=data?.[i] || {
+            price:100000,
+            leader:"Chưa có",
+            locked:false
+        };
+
+        html+=`
+        <div class="slot ${slot.locked?'locked':''}">
+            <h3>Slot ${i}</h3>
+            <p>Giá: ${Number(slot.price).toLocaleString()} đ</p>
+            <p>Dẫn đầu: ${slot.leader}</p>
+            <p>${slot.locked?'✅ ĐÃ CHỐT 500K':'Đang đấu giá'}</p>
+        </div>`;
+    }
+
+    document.getElementById("slots").innerHTML=html;
+}
+
+onValue(ref(db,"slots"),snap=>{
+    renderSlots(snap.val());
+});
+
+onValue(ref(db,"history"),snap=>{
+
+    let arr=[];
+
+    snap.forEach(x=>{
+        arr.push(x.val());
+    });
+
+    arr.reverse();
+
+    document.getElementById("history").innerHTML=
+        arr.slice(0,100).map(x=>
+            `<div>${x.time} - ${x.name} - Slot ${x.slot} - ${Number(x.price).toLocaleString()} đ</div>`
+        ).join("");
+});
+
+const endTime=new Date("2026-06-06T23:59:00+07:00").getTime();
+
+function updateTimer(){
+
+    const now=new Date().getTime();
+
+    let diff=endTime-now;
+
+    if(diff<=0){
+        document.getElementById("timer").innerHTML="ĐẤU GIÁ ĐÃ KẾT THÚC";
+        return;
+    }
+
+    const h=Math.floor(diff/1000/60/60);
+    const m=Math.floor(diff/1000/60)%60;
+    const s=Math.floor(diff/1000)%60;
+
+    document.getElementById("timer").innerHTML=
+        `Còn lại: ${h}h ${m}m ${s}s`;
+}
+
+updateTimer();
+setInterval(updateTimer,1000);
+
+</script>
+
 </body>
 </html>
+```
